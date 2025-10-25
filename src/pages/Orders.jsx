@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useShop } from '../contexts/ShopContext';
 import { supabase } from '../lib/supabase';
-import { Search, X, ChevronDown, ChevronUp, ExternalLink, RotateCcw, User, Phone, Mail, Calendar, Store, CreditCard, FileText } from 'lucide-react';
+import { Search, X, ChevronDown, ChevronUp, ExternalLink, RotateCcw, User, Phone, Mail, Calendar, Store, CreditCard, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Orders = () => {
   const { language } = useLanguage();
@@ -23,11 +23,16 @@ const Orders = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
   const [shippingStatusFilter, setShippingStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState({ start: null, end: null });
+  const [tempDateRange, setTempDateRange] = useState({ start: null, end: null });
 
   // Dropdown states
   const [showOrderStatusDropdown, setShowOrderStatusDropdown] = useState(false);
   const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   const [showShippingDropdown, setShowShippingDropdown] = useState(false);
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const ORDERS_PER_PAGE = 50;
 
@@ -38,8 +43,22 @@ const Orders = () => {
       orderStatus: 'Order Status',
       paymentStatus: 'Payment',
       shippingStatus: 'Shipping',
+      dateFilter: 'Date',
       resetFilters: 'Reset',
       all: 'All',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      thisWeek: 'This Week',
+      lastWeek: 'Last Week',
+      thisMonth: 'This Month',
+      lastMonth: 'Last Month',
+      thisYear: 'This Year',
+      lastYear: 'Last Year',
+      customRange: 'Custom Range',
+      apply: 'Apply',
+      clear: 'Clear',
+      startDate: 'Start Date',
+      endDate: 'End Date',
       confirmed: 'Confirmed',
       pending: 'Pending',
       cancelled: 'Cancelled',
@@ -77,8 +96,22 @@ const Orders = () => {
       orderStatus: 'Status Comandă',
       paymentStatus: 'Plată',
       shippingStatus: 'Livrare',
+      dateFilter: 'Dată',
       resetFilters: 'Resetează',
       all: 'Toate',
+      today: 'Astăzi',
+      yesterday: 'Ieri',
+      thisWeek: 'Săptămâna Aceasta',
+      lastWeek: 'Săptămâna Trecută',
+      thisMonth: 'Luna Aceasta',
+      lastMonth: 'Luna Trecută',
+      thisYear: 'Anul Acesta',
+      lastYear: 'Anul Trecut',
+      customRange: 'Interval Personalizat',
+      apply: 'Aplică',
+      clear: 'Șterge',
+      startDate: 'Data Start',
+      endDate: 'Data Sfârșit',
       confirmed: 'Confirmată',
       pending: 'În Așteptare',
       cancelled: 'Anulată',
@@ -113,6 +146,74 @@ const Orders = () => {
   };
 
   const t = translations[language];
+
+  const getDateRange = (filter) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch(filter) {
+      case 'today':
+        return { start: today, end: new Date(today.getTime() + 86400000 - 1) };
+      case 'yesterday':
+        const yesterday = new Date(today.getTime() - 86400000);
+        return { start: yesterday, end: new Date(yesterday.getTime() + 86400000 - 1) };
+      case 'thisWeek':
+        const startOfThisWeek = new Date(today);
+        startOfThisWeek.setDate(today.getDate() - today.getDay());
+        const endOfThisWeek = new Date(startOfThisWeek);
+        endOfThisWeek.setDate(startOfThisWeek.getDate() + 6);
+        endOfThisWeek.setHours(23, 59, 59, 999);
+        return { start: startOfThisWeek, end: endOfThisWeek };
+      case 'lastWeek':
+        const startOfLastWeek = new Date(today);
+        startOfLastWeek.setDate(today.getDate() - today.getDay() - 7);
+        const endOfLastWeek = new Date(startOfLastWeek);
+        endOfLastWeek.setDate(startOfLastWeek.getDate() + 6);
+        endOfLastWeek.setHours(23, 59, 59, 999);
+        return { start: startOfLastWeek, end: endOfLastWeek };
+      case 'thisMonth':
+        return {
+          start: new Date(now.getFullYear(), now.getMonth(), 1),
+          end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+        };
+      case 'lastMonth':
+        return {
+          start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+          end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
+        };
+      case 'thisYear':
+        return {
+          start: new Date(now.getFullYear(), 0, 1),
+          end: new Date(now.getFullYear(), 11, 31, 23, 59, 59)
+        };
+      case 'lastYear':
+        return {
+          start: new Date(now.getFullYear() - 1, 0, 1),
+          end: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59)
+        };
+      default:
+        return null;
+    }
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    return { daysInMonth, startingDayOfWeek, year, month };
+  };
+
+  const formatDateDisplay = (date) => {
+    if (!date) return '';
+    const day = date.getDate();
+    const month = date.toLocaleString(language === 'EN' ? 'en-US' : 'ro-RO', { month: 'short' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -171,8 +272,18 @@ const Orders = () => {
       filtered = filtered.filter(order => order.shipping_status === shippingStatusFilter);
     }
 
+    if (dateFilter !== 'all') {
+      const range = dateFilter === 'custom' ? customDateRange : getDateRange(dateFilter);
+      if (range && range.start && range.end) {
+        filtered = filtered.filter(order => {
+          const orderDate = new Date(order.placed_at);
+          return orderDate >= range.start && orderDate <= range.end;
+        });
+      }
+    }
+
     setFilteredOrders(filtered);
-  }, [searchQuery, orderStatusFilter, paymentStatusFilter, shippingStatusFilter, orders]);
+  }, [searchQuery, orderStatusFilter, paymentStatusFilter, shippingStatusFilter, dateFilter, customDateRange, orders]);
 
   const loadMoreOrders = async () => {
     if (loadingMore || !hasMore) return;
@@ -223,6 +334,9 @@ const Orders = () => {
     setOrderStatusFilter('all');
     setPaymentStatusFilter('all');
     setShippingStatusFilter('all');
+    setDateFilter('all');
+    setCustomDateRange({ start: null, end: null });
+    setTempDateRange({ start: null, end: null });
   };
 
   const toggleOrderDetails = (orderId) => {
@@ -289,10 +403,38 @@ const Orders = () => {
 
   const getCountryFlag = (code) => {
     const lowerCode = code.toLowerCase();
-    return <span className={`fi fi-${lowerCode} rounded`} style={{ fontSize: '1rem', lineHeight: 1 }}></span>;
+    return <span className={`fi fi-${lowerCode} rounded`} style={{ fontSize: '1.2rem', lineHeight: 1 }}></span>;
   };
 
-  // Custom Dropdown Component - Z-INDEX MIC
+  const handleDateClick = (day) => {
+    const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+
+    if (!tempDateRange.start || (tempDateRange.start && tempDateRange.end)) {
+      setTempDateRange({ start: clickedDate, end: null });
+    } else {
+      if (clickedDate < tempDateRange.start) {
+        setTempDateRange({ start: clickedDate, end: tempDateRange.start });
+      } else {
+        setTempDateRange({ ...tempDateRange, end: clickedDate });
+      }
+    }
+  };
+
+  const applyCustomRange = () => {
+    if (tempDateRange.start && tempDateRange.end) {
+      setCustomDateRange(tempDateRange);
+      setDateFilter('custom');
+      setShowDateDropdown(false);
+    }
+  };
+
+  const clearCustomRange = () => {
+    setTempDateRange({ start: null, end: null });
+    setCustomDateRange({ start: null, end: null });
+    setDateFilter('all');
+  };
+
+  // Custom Dropdown Component
   const CustomDropdown = ({ value, onChange, options, label, isOpen, setIsOpen }) => {
     return (
       <div className="relative z-[20]">
@@ -307,7 +449,8 @@ const Orders = () => {
         {isOpen && (
           <>
             <div className="fixed inset-0 z-[25]" onClick={() => setIsOpen(false)} />
-            <div className="absolute top-full left-0 mt-2 w-full dark:bg-[#1E2028] bg-white rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] border-2 dark:border-[#3A3D4A] border-gray-300 overflow-hidden z-[30] py-2">              {options.map((option) => (
+            <div className="absolute top-full left-0 mt-2 w-full dark:bg-[#1E2028] bg-white rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] border-2 dark:border-[#3A3D4A] border-gray-300 overflow-hidden z-[30] py-2">
+              {options.map((option) => (
                 <button
                   key={option.value}
                   onClick={() => {
@@ -329,6 +472,221 @@ const Orders = () => {
       </div>
     );
   };
+
+  // Calendar Component
+   const CalendarPicker = () => {
+     const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth);
+     const monthName = currentMonth.toLocaleString(language === 'EN' ? 'en-US' : 'ro-RO', { month: 'long', year: 'numeric' });
+     const dayNames = language === 'EN'
+       ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+       : ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
+
+     const isDateInRange = (day) => {
+       if (!tempDateRange.start) return false;
+       const date = new Date(year, month, day);
+       if (!tempDateRange.end) {
+         return date.getTime() === tempDateRange.start.getTime();
+       }
+       return date >= tempDateRange.start && date <= tempDateRange.end;
+     };
+
+     const isDateStart = (day) => {
+       if (!tempDateRange.start) return false;
+       const date = new Date(year, month, day);
+       return date.getTime() === tempDateRange.start.getTime();
+     };
+
+     const isDateEnd = (day) => {
+       if (!tempDateRange.end) return false;
+       const date = new Date(year, month, day);
+       return date.getTime() === tempDateRange.end.getTime();
+     };
+
+     return (
+       <div className="p-4">
+         {/* Month Navigation */}
+         <div className="flex items-center justify-between mb-4">
+           <button
+             type="button"
+             onClick={(e) => {
+               e.stopPropagation();
+               setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+             }}
+             className="p-2 rounded-lg dark:hover:bg-white/10 hover:bg-black/10 transition"
+           >
+             <ChevronLeft size={20} className="dark:text-dark-text text-light-text" />
+           </button>
+           <span className="text-sm font-semibold dark:text-dark-text text-light-text">
+             {monthName}
+           </span>
+           <button
+             type="button"
+             onClick={(e) => {
+               e.stopPropagation();
+               setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+             }}
+             className="p-2 rounded-lg dark:hover:bg-white/10 hover:bg-black/10 transition"
+           >
+             <ChevronRight size={20} className="dark:text-dark-text text-light-text" />
+           </button>
+         </div>
+
+         {/* Day Names */}
+         <div className="grid grid-cols-7 gap-1 mb-2">
+           {dayNames.map((day) => (
+             <div key={day} className="text-center text-xs font-semibold dark:text-dark-muted text-light-muted py-2">
+               {day}
+             </div>
+           ))}
+         </div>
+
+         {/* Calendar Days */}
+         <div className="grid grid-cols-7 gap-1">
+           {Array.from({ length: startingDayOfWeek }, (_, i) => (
+             <div key={`empty-start-${i}`} className="aspect-square" />
+           ))}
+           {Array.from({ length: daysInMonth }, (_, i) => {
+             const day = i + 1;
+             const inRange = isDateInRange(day);
+             const isStart = isDateStart(day);
+             const isEnd = isDateEnd(day);
+
+             return (
+               <button
+                 key={`day-${day}`}
+                 type="button"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   handleDateClick(day);
+                 }}
+                 className={`aspect-square flex items-center justify-center text-sm rounded-lg transition ${
+                   inRange
+                     ? 'bg-accent-primary text-white font-semibold'
+                     : 'dark:hover:bg-white/10 hover:bg-black/10 dark:text-dark-text text-light-text'
+                 } ${(isStart || isEnd) ? 'ring-2 ring-accent-primary' : ''}`}
+               >
+                 {day}
+               </button>
+             );
+           })}
+         </div>
+
+         {/* Selected Range Display */}
+         {tempDateRange.start && (
+           <div className="mt-4 pt-4 border-t dark:border-white/10 border-gray-200">
+             <div className="text-xs dark:text-dark-muted text-light-muted mb-2">
+               {t.startDate}: <span className="font-semibold dark:text-dark-text text-light-text">{formatDateDisplay(tempDateRange.start)}</span>
+             </div>
+             {tempDateRange.end && (
+               <div className="text-xs dark:text-dark-muted text-light-muted mb-3">
+                 {t.endDate}: <span className="font-semibold dark:text-dark-text text-light-text">{formatDateDisplay(tempDateRange.end)}</span>
+               </div>
+             )}
+             <div className="flex gap-2">
+               <button
+                 type="button"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   clearCustomRange();
+                 }}
+                 className="flex-1 px-3 py-2 text-xs rounded-lg dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-dark-text text-light-text font-medium transition"
+               >
+                 {t.clear}
+               </button>
+               <button
+                 type="button"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   applyCustomRange();
+                 }}
+                 disabled={!tempDateRange.start || !tempDateRange.end}
+                 className="flex-1 px-3 py-2 text-xs rounded-lg bg-accent-primary text-white font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 {t.apply}
+               </button>
+             </div>
+           </div>
+         )}
+       </div>
+     );
+   };
+
+  // Date Filter Dropdown
+   const DateFilterDropdown = () => {
+     const dateOptions = [
+        { value: 'all', label: t.all },
+        { value: 'today', label: t.today },
+        { value: 'yesterday', label: t.yesterday },
+        { value: 'thisWeek', label: t.thisWeek },
+        { value: 'lastWeek', label: t.lastWeek },
+        { value: 'thisMonth', label: t.thisMonth },
+        { value: 'lastMonth', label: t.lastMonth },
+        { value: 'thisYear', label: t.thisYear },
+        { value: 'lastYear', label: t.lastYear },
+      ];
+
+     const displayText = dateFilter === 'custom' && customDateRange.start && customDateRange.end
+       ? `${formatDateDisplay(customDateRange.start)} - ${formatDateDisplay(customDateRange.end)}`
+       : t[dateFilter] || t.all;
+
+     return (
+       <div className="relative z-[20]">
+         <button
+           onClick={() => {
+             setShowDateDropdown(!showDateDropdown);
+             setShowOrderStatusDropdown(false);
+             setShowPaymentDropdown(false);
+             setShowShippingDropdown(false);
+           }}
+           className="px-4 py-2.5 rounded-lg dark:bg-[#2A2D3A] bg-white border-2 dark:border-[#3A3D4A] border-gray-300 dark:text-white text-gray-900 hover:border-accent-primary focus:outline-none focus:border-accent-primary transition text-sm font-medium flex items-center gap-3 min-w-[200px] justify-between"
+         >
+           <span className="truncate flex items-center gap-2">
+             <Calendar size={16} />
+             {t.dateFilter}: {displayText}
+           </span>
+           <ChevronDown size={16} className={`transition-transform flex-shrink-0 ${showDateDropdown ? 'rotate-180' : ''}`} />
+         </button>
+
+         {showDateDropdown && (
+           <>
+             <div className="fixed inset-0 z-[25]" onClick={() => setShowDateDropdown(false)} />
+             <div className="absolute top-full left-0 mt-2 dark:bg-[#1E2028] bg-white rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] border-2 dark:border-[#3A3D4A] border-gray-300 overflow-hidden z-[30]">
+               <div className="flex">
+                 {/* Quick Options - Left Side */}
+                 <div className="py-2 border-r dark:border-white/10 border-gray-200 min-w-[180px]">
+                   {dateOptions.map((option) => (
+                     <button
+                       key={option.value}
+                       onClick={() => {
+                         setDateFilter(option.value);
+                         if (option.value === 'all') {
+                           setCustomDateRange({ start: null, end: null });
+                           setTempDateRange({ start: null, end: null });
+                         }
+                         setShowDateDropdown(false);
+                       }}
+                       className={`w-full px-5 py-2.5 text-left text-sm font-medium transition ${
+                         dateFilter === option.value && dateFilter !== 'custom'
+                           ? 'bg-accent-primary text-white'
+                           : 'dark:hover:bg-[#2A2D3A] hover:bg-gray-100 dark:text-white text-gray-900'
+                       }`}
+                     >
+                       {option.label}
+                     </button>
+                   ))}
+                 </div>
+
+                 {/* Calendar - Right Side */}
+                 <div className="min-w-[300px]">
+                   <CalendarPicker />
+                 </div>
+               </div>
+             </div>
+           </>
+         )}
+       </div>
+     );
+   };
 
   if (loading) {
     return (
@@ -384,7 +742,7 @@ const Orders = () => {
       `}</style>
 
       <div className="space-y-4">
-        {/* Filters - SOLID BACKGROUND */}
+        {/* Filters */}
         <div className="dark:bg-[#1E2028] bg-white p-4 rounded-2xl border dark:border-white/10 border-gray-200 shadow-lg">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1 max-w-xs">
@@ -407,6 +765,8 @@ const Orders = () => {
             </div>
 
             <div className="flex gap-2 flex-wrap">
+              <DateFilterDropdown />
+
               <CustomDropdown
                 value={orderStatusFilter}
                 onChange={setOrderStatusFilter}
@@ -418,6 +778,7 @@ const Orders = () => {
                   if (isOpen) {
                     setShowPaymentDropdown(false);
                     setShowShippingDropdown(false);
+                    setShowDateDropdown(false);
                   }
                 }}
               />
@@ -433,6 +794,7 @@ const Orders = () => {
                   if (isOpen) {
                     setShowOrderStatusDropdown(false);
                     setShowShippingDropdown(false);
+                    setShowDateDropdown(false);
                   }
                 }}
               />
@@ -448,11 +810,12 @@ const Orders = () => {
                   if (isOpen) {
                     setShowOrderStatusDropdown(false);
                     setShowPaymentDropdown(false);
+                    setShowDateDropdown(false);
                   }
                 }}
               />
 
-              {(searchQuery || orderStatusFilter !== 'all' || paymentStatusFilter !== 'all' || shippingStatusFilter !== 'all') && (
+              {(searchQuery || orderStatusFilter !== 'all' || paymentStatusFilter !== 'all' || shippingStatusFilter !== 'all' || dateFilter !== 'all') && (
                 <button
                   onClick={resetFilters}
                   className="px-4 py-2 rounded-lg dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-white text-gray-900 font-medium transition text-sm"
