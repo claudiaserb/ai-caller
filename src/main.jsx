@@ -5,13 +5,16 @@ import './index.css'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { ShopProvider } from './contexts/ShopContext'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <App />
+          <ShopProvider>
+            <App />
+          </ShopProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

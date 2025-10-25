@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Clock } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 
@@ -35,7 +37,6 @@ const ScrollPicker = ({ value, onChange, max, label }) => {
       <div className="relative h-32 overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b dark:from-dark-surface from-white to-transparent z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t dark:from-dark-surface from-white to-transparent z-10 pointer-events-none" />
-
         <div className="absolute top-1/2 -translate-y-1/2 left-1 right-1 h-10 rounded-lg dark:bg-accent-primary/10 bg-accent-primary/5 border border-accent-primary/30 pointer-events-none z-10" />
 
         <div
@@ -50,7 +51,7 @@ const ScrollPicker = ({ value, onChange, max, label }) => {
               className="h-10 flex items-center justify-center snap-center"
             >
               <span
-                className={`text-xl font-semibold transition-all ${
+                className={`text-base font-semibold transition-all ${
                   item === value
                     ? 'dark:text-dark-text text-light-text scale-100'
                     : 'dark:text-dark-muted text-light-muted scale-75 opacity-40'
@@ -75,7 +76,6 @@ const TimeInput = ({ value, onChange, label }) => {
   const handleInputChange = (e) => {
     const val = e.target.value;
     setInputValue(val);
-
     if (/^\d{2}:\d{2}$/.test(val)) {
       const [h, m] = val.split(':');
       if (parseInt(h) >= 0 && parseInt(h) <= 23 && parseInt(m) >= 0 && parseInt(m) <= 59) {
@@ -108,26 +108,24 @@ const TimeInput = ({ value, onChange, label }) => {
         {label}
       </label>
       <div className="relative">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="HH:MM"
-            className="flex-1 px-4 py-4 text-lg rounded-xl dark:bg-white/5 bg-black/5 border dark:border-white/10 border-gray-200/50 dark:text-dark-text text-light-text focus:outline-none focus:ring-2 focus:ring-accent-primary transition"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPicker(!showPicker)}
-            className="px-4 py-4 rounded-xl dark:bg-white/5 bg-black/5 border dark:border-white/10 border-gray-200/50 dark:hover:bg-white/10 hover:bg-black/10 transition"
-          >
-            <Clock size={20} className="dark:text-dark-muted text-light-muted" />
-          </button>
-        </div>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onBlur={handleInputBlur}
+          placeholder="HH:MM"
+          className="w-full px-4 py-4 pr-14 text-lg rounded-xl dark:bg-white/5 bg-black/5 border dark:border-white/10 border-gray-200/50 dark:text-dark-text text-light-text focus:outline-none focus:ring-2 focus:ring-accent-primary transition"
+        />
+        <button
+          type="button"
+          onClick={() => setShowPicker(!showPicker)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg dark:hover:bg-white/10 hover:bg-black/10 transition"
+        >
+          <Clock size={20} className="dark:text-dark-muted text-light-muted" />
+        </button>
 
         {showPicker && (
-          <div className="absolute top-full left-0 right-0 mt-2 dark:bg-dark-surface/95 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border dark:border-white/10 border-gray-200 p-4 z-20">
+          <div className="absolute bottom-full left-0 right-0 mb-2 dark:bg-dark-surface/95 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border dark:border-white/10 border-gray-200 p-4 z-20">
             <div className="flex gap-3 mb-3">
               <ScrollPicker
                 value={hours}
@@ -160,9 +158,13 @@ const TimeInput = ({ value, onChange, label }) => {
 
 const CallsSettings = () => {
   const { language } = useLanguage();
+  const { user } = useAuth();
   const [tone, setTone] = useState('professional');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
   const translations = {
     EN: {
@@ -177,6 +179,8 @@ const CallsSettings = () => {
       startTime: 'Start Time',
       endTime: 'End Time',
       saveSettings: 'Save Settings',
+      settingsSaved: 'Settings saved successfully!',
+      settingsError: 'Failed to save settings',
     },
     RO: {
       pageTitle: 'Setări Apeluri',
@@ -190,14 +194,85 @@ const CallsSettings = () => {
       startTime: 'Ora Start',
       endTime: 'Ora Sfârșit',
       saveSettings: 'Salvează Setările',
+      settingsSaved: 'Setările au fost salvate!',
+      settingsError: 'Eroare la salvarea setărilor',
     },
   };
 
   const t = translations[language];
 
-  const handleSave = () => {
-    console.log('Saving settings:', { tone, startTime, endTime });
+  // Load settings from database
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('ai_settings')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading settings:', error);
+          return;
+        }
+
+        if (data) {
+          setTone(data.tone);
+          setStartTime(data.start_time.slice(0, 5)); // Remove seconds
+          setEndTime(data.end_time.slice(0, 5));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      loadSettings();
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage('');
+
+    try {
+      const { error } = await supabase
+        .from('ai_settings')
+        .update({
+          tone,
+          start_time: `${startTime}:00`,
+          end_time: `${endTime}:00`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setMessage(t.settingsSaved);
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setMessage(t.settingsError);
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <Layout title={t.pageTitle}>
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="dark:text-dark-muted text-light-muted">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title={t.pageTitle}>
@@ -217,6 +292,16 @@ const CallsSettings = () => {
             <h2 className="text-3xl font-bold dark:text-dark-text text-light-text mb-8">
               {t.cardTitle}
             </h2>
+
+            {message && (
+              <div className={`mb-6 p-4 rounded-xl ${
+                message.includes('success') || message.includes('salvate')
+                  ? 'bg-success/10 border border-success/20 text-success'
+                  : 'bg-error/10 border border-error/20 text-error'
+              }`}>
+                <p className="text-center font-medium">{message}</p>
+              </div>
+            )}
 
             <div className="space-y-8">
               {/* Conversation Tone */}
@@ -281,9 +366,10 @@ const CallsSettings = () => {
               {/* Save Button */}
               <button
                 onClick={handleSave}
-                className="w-full py-4 text-lg rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20"
+                disabled={saving}
+                className="w-full py-4 text-lg rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20 disabled:opacity-50"
               >
-                {t.saveSettings}
+                {saving ? 'Saving...' : t.saveSettings}
               </button>
             </div>
           </div>
