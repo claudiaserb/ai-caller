@@ -3,15 +3,13 @@ import { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useShop } from '../../contexts/ShopContext';
-import { useNavigate } from 'react-router-dom';
-
-const Header = ({ title }) => {
+import { useNavigate } from 'react-router-doconst Header = ({ title, isCollapsed = false }) => {
   const { language } = useLanguage();
   const { user, signOut } = useAuth();
   const { shops, selectedShop, selectShop } = useShop();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showShopMenu, setShowShopMenu] = useState(false);
+  const [showShopMenu, setShowShopMenu] = useState(false);State(false);
 
   const translations = {
     EN: {
@@ -65,14 +63,8 @@ const Header = ({ title }) => {
       case 'shopify':
         return 'text-green-500';
       case 'woocommerce':
-        return 'text-purple-500';
-      default:
-        return 'text-accent-primary';
-    }
-  };
-
-  return (
-    <header className="h-16 border-b dark:border-white/10 border-gray-200/50 dark:bg-dark-surface bg-light-surface flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-[40]">
+        return 'text-purple-500'  return (
+    <header className={`h-16 border-b dark:border-white/10 border-gray-200/50 dark:bg-dark-surface bg-light-surface flex items-center justify-between px-6 fixed top-0 right-0 z-[40] transition-all duration-300 ${isCollapsed ? 'left-20' : 'left-64'}`}>lex items-center justify-between px-6 fixed top-0 right-0 left-64 z-[40]">
       <h1 className="text-2xl font-bold dark:text-dark-text text-light-text">{title}</h1>
 
       <div className="flex items-center gap-3">

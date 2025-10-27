@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useProfileTab } from '../contexts/ProfileTabContext';
 import { supabase } from '../lib/supabase';
 import { User, Building2, CreditCard, Lock, Mail, Phone, MapPin, FileText, Eye, EyeOff, Bell, BellOff, ChevronDown } from 'lucide-react';
 import Layout from '../components/layout/Layout';
@@ -8,8 +9,8 @@ import Layout from '../components/layout/Layout';
 const Profile = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('general');
-  const [loading, setLoading] = useState(true);
+  const { activeTab } = useProfileTab();
+  const [loading, setLoading] = useState(true);eTab;tate(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -339,34 +340,10 @@ const Profile = () => {
   if (loading) {
     return (
       <Layout title={t.pageTitle}>
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="dark:text-dark-muted text-light-muted">Loading...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
+        <div className="flex items-center justify-center min-h-[ca  return (
     <Layout title={t.pageTitle}>
       <div className="max-w-5xl mx-auto">
-        {/* Tabs Navigation */}
-        <div className="glass dark:glass glass-light rounded-2xl p-2 mb-6">
-          <div className="flex gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-                    isActive
-                      ? 'bg-accent-primary text-white shadow-lg'
-                      : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text dark:hover:bg-white/5 hover:bg-black/5'
+        {/* Message */}'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text dark:hover:bg-white/5 hover:bg-black/5'
                   }`}
                 >
                   <Icon size={18} />
