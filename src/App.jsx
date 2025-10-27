@@ -7,6 +7,7 @@ import CallsSettings from './pages/CallsSettings';
 import OrdersConfirmation from './pages/OrdersConfirmation';
 import Orders from './pages/Orders';
 import Products from './pages/Products';
+import Profile from './pages/Profile';
 
 function App() {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ function App() {
         <Route path="/orders-confirmation" element={user ? <OrdersConfirmation /> : <Navigate to="/login" />} />
         <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" />} />
         <Route path="/products" element={user ? <Products /> : <Navigate to="/login" />} />
+        <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );

@@ -144,6 +144,7 @@ const TimeInput = ({ value, onChange, label }) => {
               />
             </div>
             <button
+              type="button"
               onClick={handleDone}
               className="w-full py-2.5 text-sm rounded-lg gradient-accent text-white font-semibold hover:opacity-90 transition"
             >
@@ -160,6 +161,8 @@ const CallsSettings = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
   const [tone, setTone] = useState('professional');
+  const [voice, setVoice] = useState('feminine');
+  const [activeDays, setActiveDays] = useState([1, 2, 3, 4, 5]); // Luni-Vineri by default
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
   const [loading, setLoading] = useState(true);
@@ -175,6 +178,20 @@ const CallsSettings = () => {
       professionalDesc: 'Formal and business-like',
       friendly: 'Friendly',
       friendlyDesc: 'Casual and approachable',
+      voiceType: 'Voice Type',
+      feminine: 'Feminine',
+      feminineDesc: 'Female voice',
+      masculine: 'Masculine',
+      masculineDesc: 'Male voice',
+      activeDays: 'Active Days',
+      activeDaysDesc: 'Select days when AI agent can make calls',
+      monday: 'Mon',
+      tuesday: 'Tue',
+      wednesday: 'Wed',
+      thursday: 'Thu',
+      friday: 'Fri',
+      saturday: 'Sat',
+      sunday: 'Sun',
       callInterval: 'Call Interval',
       startTime: 'Start Time',
       endTime: 'End Time',
@@ -190,6 +207,20 @@ const CallsSettings = () => {
       professionalDesc: 'Formal și profesional',
       friendly: 'Prietenos',
       friendlyDesc: 'Casual și accesibil',
+      voiceType: 'Tip Voce',
+      feminine: 'Feminină',
+      feminineDesc: 'Voce feminină',
+      masculine: 'Masculină',
+      masculineDesc: 'Voce masculină',
+      activeDays: 'Zile Active',
+      activeDaysDesc: 'Selectează zilele când agentul AI poate apela',
+      monday: 'Lun',
+      tuesday: 'Mar',
+      wednesday: 'Mie',
+      thursday: 'Joi',
+      friday: 'Vin',
+      saturday: 'Sâm',
+      sunday: 'Dum',
       callInterval: 'Interval Apeluri',
       startTime: 'Ora Start',
       endTime: 'Ora Sfârșit',
@@ -200,6 +231,29 @@ const CallsSettings = () => {
   };
 
   const t = translations[language];
+
+  const daysOfWeek = [
+    { id: 1, label: t.monday, isWeekend: false },
+    { id: 2, label: t.tuesday, isWeekend: false },
+    { id: 3, label: t.wednesday, isWeekend: false },
+    { id: 4, label: t.thursday, isWeekend: false },
+    { id: 5, label: t.friday, isWeekend: false },
+    { id: 6, label: t.saturday, isWeekend: true },
+    { id: 0, label: t.sunday, isWeekend: true },
+  ];
+
+  const toggleDay = (dayId) => {
+    if (activeDays.includes(dayId)) {
+      setActiveDays(activeDays.filter(d => d !== dayId));
+    } else {
+      setActiveDays([...activeDays, dayId].sort((a, b) => {
+        // Sort: Luni=1, Mar=2, ..., Sâm=6, Dum=0
+        const orderA = a === 0 ? 7 : a;
+        const orderB = b === 0 ? 7 : b;
+        return orderA - orderB;
+      }));
+    }
+  };
 
   // Load settings from database
   useEffect(() => {
@@ -218,6 +272,8 @@ const CallsSettings = () => {
 
         if (data) {
           setTone(data.tone);
+          if (data.voice) setVoice(data.voice);
+          if (data.active_days) setActiveDays(data.active_days);
           setStartTime(data.start_time.slice(0, 5)); // Remove seconds
           setEndTime(data.end_time.slice(0, 5));
         }
@@ -242,6 +298,8 @@ const CallsSettings = () => {
         .from('ai_settings')
         .update({
           tone,
+          voice,
+          active_days: activeDays,
           start_time: `${startTime}:00`,
           end_time: `${endTime}:00`,
           updated_at: new Date().toISOString(),
@@ -304,43 +362,110 @@ const CallsSettings = () => {
             )}
 
             <div className="space-y-8">
-              {/* Conversation Tone */}
+              {/* Conversation Tone - Segmented Control */}
               <div>
-                <label className="block text-base font-semibold dark:text-dark-text text-light-text mb-4">
+                <label className="block text-base font-semibold dark:text-dark-text text-light-text mb-3">
                   {t.conversationTone}
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="relative inline-flex w-full dark:bg-white/5 bg-black/5 rounded-xl p-1">
                   <button
+                    type="button"
                     onClick={() => setTone('professional')}
-                    className={`p-6 rounded-xl border-2 transition ${
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
                       tone === 'professional'
-                        ? 'border-accent-primary dark:bg-accent-primary/10 bg-accent-primary/5'
-                        : 'dark:border-white/10 border-gray-200/50 dark:hover:border-white/20 hover:border-gray-300'
+                        ? 'bg-accent-primary text-white shadow-lg'
+                        : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text'
                     }`}
                   >
-                    <div className="font-semibold text-lg dark:text-dark-text text-light-text mb-2">
-                      {t.professional}
-                    </div>
-                    <div className="text-sm dark:text-dark-muted text-light-muted">
-                      {t.professionalDesc}
-                    </div>
+                    {t.professional}
                   </button>
-
                   <button
+                    type="button"
                     onClick={() => setTone('friendly')}
-                    className={`p-6 rounded-xl border-2 transition ${
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
                       tone === 'friendly'
-                        ? 'border-accent-primary dark:bg-accent-primary/10 bg-accent-primary/5'
-                        : 'dark:border-white/10 border-gray-200/50 dark:hover:border-white/20 hover:border-gray-300'
+                        ? 'bg-accent-primary text-white shadow-lg'
+                        : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text'
                     }`}
                   >
-                    <div className="font-semibold text-lg dark:text-dark-text text-light-text mb-2">
-                      {t.friendly}
-                    </div>
-                    <div className="text-sm dark:text-dark-muted text-light-muted">
-                      {t.friendlyDesc}
-                    </div>
+                    {t.friendly}
                   </button>
+                </div>
+                <p className="text-xs dark:text-dark-muted text-light-muted mt-2">
+                  {tone === 'professional' ? t.professionalDesc : t.friendlyDesc}
+                </p>
+              </div>
+
+              {/* Voice Type - Segmented Control */}
+              <div>
+                <label className="block text-base font-semibold dark:text-dark-text text-light-text mb-3">
+                  {t.voiceType}
+                </label>
+                <div className="relative inline-flex w-full dark:bg-white/5 bg-black/5 rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => setVoice('feminine')}
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+                      voice === 'feminine'
+                        ? 'bg-accent-primary text-white shadow-lg'
+                        : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text'
+                    }`}
+                  >
+                    {t.feminine}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVoice('masculine')}
+                    className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+                      voice === 'masculine'
+                        ? 'bg-accent-primary text-white shadow-lg'
+                        : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text'
+                    }`}
+                  >
+                    {t.masculine}
+                  </button>
+                </div>
+                <p className="text-xs dark:text-dark-muted text-light-muted mt-2">
+                  {voice === 'feminine' ? t.feminineDesc : t.masculineDesc}
+                </p>
+              </div>
+
+              {/* Active Days */}
+              <div>
+                <label className="block text-base font-semibold dark:text-dark-text text-light-text mb-2">
+                  {t.activeDays}
+                </label>
+                <p className="text-sm dark:text-dark-muted text-light-muted mb-4">
+                  {t.activeDaysDesc}
+                </p>
+                <div className="grid grid-cols-7 gap-3">
+                  {daysOfWeek.map((day) => {
+                    const isActive = activeDays.includes(day.id);
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => toggleDay(day.id)}
+                        className={`p-4 rounded-xl border-2 transition ${
+                          isActive
+                            ? 'border-accent-primary dark:bg-accent-primary/10 bg-accent-primary/5'
+                            : day.isWeekend
+                            ? 'dark:border-white/5 border-gray-200/30 dark:hover:border-white/10 hover:border-gray-300'
+                            : 'dark:border-white/10 border-gray-200/50 dark:hover:border-white/20 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className={`text-sm transition ${
+                          isActive
+                            ? 'text-accent-primary font-bold'
+                            : day.isWeekend
+                            ? 'dark:text-dark-muted text-light-muted font-normal'
+                            : 'dark:text-dark-text text-light-text font-semibold'
+                        }`}>
+                          {day.label}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -365,6 +490,7 @@ const CallsSettings = () => {
 
               {/* Save Button */}
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
                 className="w-full py-4 text-lg rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20 disabled:opacity-50"
