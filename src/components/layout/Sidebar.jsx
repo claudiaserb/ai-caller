@@ -1,4 +1,4 @@
-import { Home, Phone, CheckSquare, FileText, Package, Globe } from 'lucide-react';
+import { Home, Phone, CheckSquare, FileText, Package, Globe, User, CreditCard, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -20,6 +20,10 @@ const Sidebar = () => {
       ordersConfirmation: 'Orders Confirmation',
       orders: 'Orders',
       products: 'Products',
+      profile: 'PROFILE',
+      general: 'General',
+      subscription: 'Subscription',
+      security: 'Security',
     },
     RO: {
       home: 'Acasă',
@@ -28,12 +32,28 @@ const Sidebar = () => {
       ordersConfirmation: 'Confirmare Comenzi',
       orders: 'Comenzi',
       products: 'Produse',
+      profile: 'PROFIL',
+      general: 'General',
+      subscription: 'Abonament',
+      security: 'Securitate',
     },
   };
 
   const t = translations[language];
 
-  const menuItems = [
+  const isOnProfile = location.pathname === '/profile';
+  const searchParams = new URLSearchParams(location.search);
+  const activeProfileTab = searchParams.get('tab') || 'general';
+
+  const profileMenuItems = [
+    { id: 'home', label: t.home, icon: Home, path: '/', section: null },
+    { id: 'section-profile', label: t.profile, isSection: true },
+    { id: 'profile-general', label: t.general, icon: User, path: '/profile?tab=general', section: 'profile' },
+    { id: 'profile-subscription', label: t.subscription, icon: CreditCard, path: '/profile?tab=subscription', section: 'profile' },
+    { id: 'profile-security', label: t.security, icon: Lock, path: '/profile?tab=security', section: 'profile' },
+  ];
+
+  const regularMenuItems = [
     { id: 'home', label: t.home, icon: Home, path: '/', section: null },
     { id: 'section-features', label: t.features, isSection: true },
     { id: 'calls-settings', label: t.callsSettings, icon: Phone, path: '/calls-settings', section: 'features' },
@@ -41,6 +61,8 @@ const Sidebar = () => {
     { id: 'orders', label: t.orders, icon: FileText, path: '/orders', section: 'features' },
     { id: 'products', label: t.products, icon: Package, path: '/products', section: null },
   ];
+
+  const menuItems = isOnProfile ? profileMenuItems : regularMenuItems;
 
   return (
     <div className="w-64 h-screen fixed left-0 top-0 dark:bg-dark-surface bg-light-surface border-r dark:border-white/10 border-gray-200/50 flex flex-col">
@@ -66,7 +88,13 @@ const Sidebar = () => {
           }
 
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          let isActive;
+          if (isOnProfile && item.path.includes('/profile')) {
+            const tabParam = new URLSearchParams(item.path.split('?')[1] || '').get('tab');
+            isActive = tabParam === activeProfileTab;
+          } else {
+            isActive = location.pathname === item.path;
+          }
 
           return (
             <button

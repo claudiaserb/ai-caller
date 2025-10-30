@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -8,6 +9,8 @@ import Layout from '../components/layout/Layout';
 const Profile = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,12 +163,6 @@ const Profile = () => {
 
   const t = translations[language];
 
-  const tabs = [
-    { id: 'general', label: t.general, icon: User },
-    { id: 'subscription', label: t.subscription, icon: CreditCard },
-    { id: 'security', label: t.security, icon: Lock },
-  ];
-
   const businessTypes = [
     { value: 'srl', label: t.srl },
     { value: 'pfa', label: t.pfa },
@@ -174,54 +171,71 @@ const Profile = () => {
     { value: 'other', label: t.other },
   ];
 
+  // Sync activeTab with URL query params
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabFromUrl = searchParams.get('tab');
+    
+    if (tabFromUrl && ['general', 'subscription', 'security'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else {
+      navigate('/profile?tab=general', { replace: true });
+    }
+  }, [location.search, navigate]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    navigate(`/profile?tab=${tabId}`, { replace: true });
+  };
+
   // Load user data
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Load user profile
+        // Get current authenticated user
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !authUser) {
+          console.error('Authentication error:', authError);
+          setLoading(false);
+          return;
+        }
+
+        // Load user profile from profiles table
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('first_name, last_name, phone, email')
-          .eq('id', user.id)
-          .single();
+          .select('name, email, phone')
+          .eq('user_id', authUser.id)
+          .limit(1);
 
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError) {
           console.error('Error loading profile:', profileError);
+          setLoading(false);
+          return;
         }
 
-        if (profileData) {
-          setFirstName(profileData.first_name || '');
-          setLastName(profileData.last_name || '');
-          setEmail(profileData.email || user.email);
-          setPhone(profileData.phone || '');
+        const profile = profileData?.[0]; // Ia primul element din array
+
+        if (profile) {
+          // Split name în first și last name
+          const nameParts = profile.name?.split(' ') || ['', ''];
+          setFirstName(nameParts[0] || '');
+          setLastName(nameParts.slice(1).join(' ') || '');
+          setEmail(profile.email || '');
+          setPhone(profile.phone || '');
         } else {
-          setEmail(user.email);
-        }
-
-        // Load business profile
-        const { data: businessData, error: businessError } = await supabase
-          .from('business_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (businessData) {
-          setCompanyName(businessData.company_name || '');
-          setVatNumber(businessData.vat_number || '');
-          setRegNumber(businessData.reg_number || '');
-          setBusinessType(businessData.business_type || '');
-          setAddress(businessData.address || '');
+          setEmail(authUser.email);
         }
 
         // Load subscription
         const { data: subData, error: subError } = await supabase
           .from('subscriptions')
           .select('plan')
-          .eq('user_id', user.id)
-          .single();
+          .eq('user_id', authUser.id)
+          .limit(1);
 
-        if (subData) {
-          setCurrentPlan(subData.plan);
+        if (subData?.[0]) {
+          setCurrentPlan(subData[0].plan);
         }
 
         // Load usage stats
@@ -229,13 +243,13 @@ const Profile = () => {
         const { data: usageData, error: usageError } = await supabase
           .from('usage_stats')
           .select('orders_processed, minutes_used')
-          .eq('user_id', user.id)
+          .eq('user_id', authUser.id)
           .eq('month', currentMonth)
-          .single();
+          .limit(1);
 
-        if (usageData) {
-          setOrdersProcessed(usageData.orders_processed || 0);
-          setMinutesUsed(usageData.minutes_used || 0);
+        if (usageData?.[0]) {
+          setOrdersProcessed(usageData[0].orders_processed || 0);
+          setMinutesUsed(usageData[0].minutes_used || 0);
         }
 
       } catch (error) {
@@ -251,48 +265,88 @@ const Profile = () => {
   }, [user]);
 
   const handleSaveGeneral = async () => {
+    // Validation
+    if (!firstName.trim() || firstName.trim().length < 2) {
+      setMessage(language === 'EN' ? 'First name must be at least 2 characters' : 'Prenumele trebuie să aibă minim 2 caractere');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    if (!lastName.trim() || lastName.trim().length < 2) {
+      setMessage(language === 'EN' ? 'Last name must be at least 2 characters' : 'Numele trebuie să aibă minim 2 caractere');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    if (!email.trim()) {
+      setMessage(language === 'EN' ? 'Email is required' : 'Email-ul este obligatoriu');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setMessage(language === 'EN' ? 'Please enter a valid email address' : 'Vă rugăm să introduceți o adresă de email validă');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    // Phone format validation (if provided)
+    if (phone.trim()) {
+      const phoneRegex = /^[\+]?[0-9\s\-\(\)]{8,}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        setMessage(language === 'EN' ? 'Please enter a valid phone number' : 'Vă rugăm să introduceți un număr de telefon valid');
+        setTimeout(() => setMessage(''), 3000);
+        return;
+      }
+    }
+
     setSaving(true);
     setMessage('');
 
     try {
-      // Upsert user profile
-      const { error: profileError } = await supabase
+      // Get authenticated user
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !authUser) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('Updating profile for user:', authUser.id);
+
+      // Pregătește datele pentru UPDATE
+      const updateData = {
+        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Update data:', updateData);
+
+      // UPDATE direct - nu UPSERT, nu INSERT
+      const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          first_name: firstName,
-          last_name: lastName,
-          phone: phone,
-          email: user.email,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
-        });
+        .update(updateData)
+        .eq('user_id', authUser.id);
 
-      if (profileError) throw profileError;
+      console.log('Update error:', error);
 
-      // Upsert business profile
-      const { error: businessError } = await supabase
-        .from('business_profiles')
-        .upsert({
-          user_id: user.id,
-          company_name: companyName,
-          vat_number: vatNumber,
-          reg_number: regNumber,
-          business_type: businessType,
-          address: address,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        });
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      if (businessError) throw businessError;
+      console.log('Profile updated successfully');
 
-      setMessage(t.changesSaved);
+      // Success message
+      setMessage(language === 'EN' ? 'Profile updated successfully!' : 'Profil actualizat cu succes!');
       setTimeout(() => setMessage(''), 3000);
+
     } catch (error) {
-      console.error('Error saving data:', error);
-      setMessage(t.changesError);
+      console.error('Error saving profile:', error);
+      setMessage(language === 'EN' ? `Failed to update profile: ${error.message}` : `Eroare la actualizarea profilului: ${error.message}`);
       setTimeout(() => setMessage(''), 3000);
     } finally {
       setSaving(false);
@@ -352,31 +406,6 @@ const Profile = () => {
   return (
     <Layout title={t.pageTitle}>
       <div className="max-w-5xl mx-auto">
-        {/* Tabs Navigation */}
-        <div className="glass dark:glass glass-light rounded-2xl p-2 mb-6">
-          <div className="flex gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-                    isActive
-                      ? 'bg-accent-primary text-white shadow-lg'
-                      : 'dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text dark:hover:bg-white/5 hover:bg-black/5'
-                  }`}
-                >
-                  <Icon size={18} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Message */}
         {message && (
           <div className={`mb-6 p-4 rounded-xl ${
@@ -573,9 +602,12 @@ const Profile = () => {
                 type="button"
                 onClick={handleSaveGeneral}
                 disabled={saving}
-                className="w-full py-4 text-lg rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20 disabled:opacity-50"
+                className="w-full py-4 text-lg rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {saving ? 'Saving...' : t.saveChanges}
+                {saving && (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                {saving ? (language === 'EN' ? 'Saving...' : 'Se salvează...') : t.saveChanges}
               </button>
             </div>
           )}
