@@ -18,35 +18,36 @@ export const ShopProvider = ({ children }) => {
   const [selectedShop, setSelectedShop] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadShops = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      setShops(data || []);
+
+      // Set active shop or first shop as selected
+      const activeShop = data?.find(shop => shop.is_active);
+      setSelectedShop(activeShop || data?.[0] || null);
+    } catch (error) {
+      console.error('Error loading shops:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadShops = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        setShops(data || []);
-
-        // Set active shop or first shop as selected
-        const activeShop = data?.find(shop => shop.is_active);
-        setSelectedShop(activeShop || data?.[0] || null);
-      } catch (error) {
-        console.error('Error loading shops:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadShops();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const selectShop = async (shopId) => {
@@ -96,12 +97,17 @@ export const ShopProvider = ({ children }) => {
     }
   };
 
+  const refreshShops = async () => {
+    await loadShops();
+  };
+
   const value = {
     shops,
     selectedShop,
     loading,
     selectShop,
     addShop,
+    refreshShops,
   };
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;

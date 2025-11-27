@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { Eye } from 'lucide-react';
 import CallDetailsModal from '../components/CallDetailsModal';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const [calls, setCalls] = useState([]);
   const [aiSettings, setAiSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,7 @@ const Dashboard = () => {
     failed: 0,
     pending: 0,
   });
+  const [timePeriod, setTimePeriod] = useState('day');
 
   const CALLS_PER_PAGE = 10;
 
@@ -51,6 +55,12 @@ const Dashboard = () => {
       noCalls: 'No calls yet',
       loadingMore: 'Loading more...',
       noMoreCalls: 'No more calls to load',
+      statistics: 'Statistics',
+      day: 'Day',
+      week: 'Week',
+      month: 'Month',
+      year: 'Year',
+      calls: 'Calls',
     },
     RO: {
       pageTitle: 'Tablou de Bord',
@@ -74,6 +84,12 @@ const Dashboard = () => {
       noCalls: 'Niciun apel încă',
       loadingMore: 'Se încarcă...',
       noMoreCalls: 'Nu mai sunt apeluri',
+      statistics: 'Statistici',
+      day: 'Zi',
+      week: 'Săptămână',
+      month: 'Lună',
+      year: 'An',
+      calls: 'Apeluri',
     },
   };
 
@@ -241,6 +257,80 @@ const Dashboard = () => {
     setIsModalOpen(true);
   };
 
+  // Generate mock data based on time period
+  const generateMockData = (period) => {
+    const data = [];
+    const now = new Date();
+    
+    if (period === 'day') {
+      // Last 24 hours, hourly data
+      for (let i = 23; i >= 0; i--) {
+        const date = new Date(now);
+        date.setHours(date.getHours() - i);
+        const hour = date.getHours();
+        const label = language === 'RO' 
+          ? `${hour.toString().padStart(2, '0')}:00`
+          : `${hour.toString().padStart(2, '0')}:00`;
+        data.push({
+          label,
+          calls: Math.floor(Math.random() * 20) + 5,
+          date: date.toISOString(),
+        });
+      }
+    } else if (period === 'week') {
+      // Last 7 days
+      const dayNames = language === 'RO'
+        ? ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm']
+        : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayIndex = date.getDay();
+        const dayName = dayNames[dayIndex];
+        const day = date.getDate();
+        const month = date.toLocaleString(language === 'RO' ? 'ro-RO' : 'en-US', { month: 'short' });
+        data.push({
+          label: `${dayName} ${day} ${month}`,
+          calls: Math.floor(Math.random() * 50) + 10,
+          date: date.toISOString(),
+        });
+      }
+    } else if (period === 'month') {
+      // Last 30 days, daily data
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const day = date.getDate();
+        const month = date.toLocaleString(language === 'RO' ? 'ro-RO' : 'en-US', { month: 'short' });
+        data.push({
+          label: `${day} ${month}`,
+          calls: Math.floor(Math.random() * 100) + 20,
+          date: date.toISOString(),
+        });
+      }
+    } else if (period === 'year') {
+      // Last 12 months
+      const monthNames = language === 'RO'
+        ? ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - i);
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        data.push({
+          label: language === 'RO' ? `${month} ${year}` : `${month} ${year}`,
+          calls: Math.floor(Math.random() * 500) + 100,
+          date: date.toISOString(),
+        });
+      }
+    }
+    
+    return data;
+  };
+
+  const chartData = generateMockData(timePeriod);
+
   if (loading) {
     return (
       <Layout title={t.pageTitle}>
@@ -264,11 +354,11 @@ const Dashboard = () => {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(108, 99, 255, 0.3);
+          background: rgba(20, 184, 166, 0.3);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(108, 99, 255, 0.5);
+          background: rgba(20, 184, 166, 0.5);
         }
       `}</style>
 
@@ -401,6 +491,86 @@ const Dashboard = () => {
               )}
             </div>
           )}
+        </div>
+
+        {/* Statistics Chart */}
+        <div className="dark:bg-dark-surface bg-light-surface p-6 rounded-2xl border dark:border-white/10 border-gray-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h2 className="text-lg font-semibold dark:text-dark-text text-light-text">
+              {t.statistics}
+            </h2>
+            
+            {/* Time Period Toggle */}
+            <div className="flex gap-2 flex-wrap">
+              {['day', 'week', 'month', 'year'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                    timePeriod === period
+                      ? 'bg-accent-primary text-white shadow-lg'
+                      : 'dark:bg-white/5 bg-black/5 dark:text-dark-muted text-light-muted dark:hover:text-dark-text hover:text-light-text'
+                  }`}
+                >
+                  {t[period]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="w-full" style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorCalls" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#14B8A6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke={isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+                  className="dark:opacity-30 opacity-20"
+                />
+                <XAxis 
+                  dataKey="label" 
+                  stroke={isDark ? '#9CA3AF' : '#6B7280'}
+                  className="text-xs"
+                  tick={{ fill: isDark ? '#9CA3AF' : '#6B7280', fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke={isDark ? '#9CA3AF' : '#6B7280'}
+                  className="text-xs"
+                  tick={{ fill: isDark ? '#9CA3AF' : '#6B7280', fontSize: 12 }}
+                  label={{ 
+                    value: t.calls, 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    fill: isDark ? '#9CA3AF' : '#6B7280',
+                    style: { textAnchor: 'middle', fontSize: '12px' }
+                  }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: isDark ? '#1A1D2E' : '#FFFFFF',
+                    border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    color: isDark ? '#E5E7EB' : '#111827',
+                  }}
+                  labelStyle={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: '12px' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="calls" 
+                  stroke="#14B8A6" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorCalls)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Reports Widget */}

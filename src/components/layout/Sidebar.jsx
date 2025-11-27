@@ -1,6 +1,6 @@
-import { Home, Phone, CheckSquare, FileText, Package, Globe, User, CreditCard, Lock } from 'lucide-react';
+import { Home, Phone, CheckSquare, FileText, Package, Globe, User, CreditCard, Lock, Store } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { cn } from '../../utils/cn';
@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language, setLanguage } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const [showLangMenu, setShowLangMenu] = useState(false);
@@ -20,6 +21,7 @@ const Sidebar = () => {
       ordersConfirmation: 'Orders Confirmation',
       orders: 'Orders',
       products: 'Products',
+      stores: 'Stores',
       profile: 'PROFILE',
       general: 'General',
       subscription: 'Subscription',
@@ -32,6 +34,7 @@ const Sidebar = () => {
       ordersConfirmation: 'Confirmare Comenzi',
       orders: 'Comenzi',
       products: 'Produse',
+      stores: 'Magazine',
       profile: 'PROFIL',
       general: 'General',
       subscription: 'Abonament',
@@ -42,7 +45,6 @@ const Sidebar = () => {
   const t = translations[language];
 
   const isOnProfile = location.pathname === '/profile';
-  const searchParams = new URLSearchParams(location.search);
   const activeProfileTab = searchParams.get('tab') || 'general';
 
   const profileMenuItems = [
@@ -51,6 +53,7 @@ const Sidebar = () => {
     { id: 'profile-general', label: t.general, icon: User, path: '/profile?tab=general', section: 'profile' },
     { id: 'profile-subscription', label: t.subscription, icon: CreditCard, path: '/profile?tab=subscription', section: 'profile' },
     { id: 'profile-security', label: t.security, icon: Lock, path: '/profile?tab=security', section: 'profile' },
+    { id: 'profile-stores', label: t.stores, icon: Store, path: '/profile?tab=stores', section: 'profile' },
   ];
 
   const regularMenuItems = [
@@ -96,10 +99,20 @@ const Sidebar = () => {
             isActive = location.pathname === item.path;
           }
 
+          const handleClick = () => {
+            if (item.path.includes('/profile?tab=')) {
+              // Extract tab from path and update search params
+              const tab = item.path.split('?tab=')[1];
+              setSearchParams({ tab });
+            } else {
+              navigate(item.path);
+            }
+          };
+
           return (
             <button
               key={item.id}
-              onClick={() => navigate(item.path)}
+              onClick={handleClick}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
                 isActive

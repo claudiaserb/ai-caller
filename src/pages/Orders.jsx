@@ -39,7 +39,7 @@ const Orders = () => {
   const translations = {
     EN: {
       pageTitle: 'Orders',
-      searchPlaceholder: 'Search order #...',
+      searchPlaceholder: 'Search by name, phone or order #...',
       orderStatus: 'Order Status',
       paymentStatus: 'Payment',
       shippingStatus: 'Shipping',
@@ -92,7 +92,7 @@ const Orders = () => {
     },
     RO: {
       pageTitle: 'Comenzi',
-      searchPlaceholder: 'Caută comandă #...',
+      searchPlaceholder: 'Caută după nume, telefon sau nr. comandă...',
       orderStatus: 'Status Comandă',
       paymentStatus: 'Plată',
       shippingStatus: 'Livrare',
@@ -254,9 +254,11 @@ const Orders = () => {
     let filtered = [...orders];
 
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(order =>
-        order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
+        (order.customer_name && order.customer_name.toLowerCase().includes(query)) ||
+        (order.customer_phone && order.customer_phone.toLowerCase().includes(query)) ||
+        (order.order_number && order.order_number.toLowerCase().includes(query))
       );
     }
 
@@ -360,6 +362,14 @@ const Orders = () => {
     } catch (error) {
       console.error('Error marking as return:', error);
     }
+  };
+
+  const handleOpenInShopify = (order) => {
+    if (!order.shopify_order_id || !order.shop?.store_url) {
+      return;
+    }
+    const url = `${order.shop.store_url}/admin/orders/${order.shopify_order_id}`;
+    window.open(url, '_blank');
   };
 
   const getStatusColor = (status, type) => {
@@ -733,11 +743,11 @@ const Orders = () => {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(108, 99, 255, 0.3);
+          background: rgba(20, 184, 166, 0.3);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(108, 99, 255, 0.5);
+          background: rgba(20, 184, 166, 0.5);
         }
       `}</style>
 
@@ -1005,8 +1015,14 @@ const Orders = () => {
                             </div>
 
                             <div className="flex gap-2 mt-4">
-                              {order.shopify_order_id && (
-                                <button className="px-4 py-2 rounded-lg dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-white text-gray-900 font-medium transition text-xs flex items-center gap-2">
+                              {order.shopify_order_id && order.shop?.store_url && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenInShopify(order);
+                                  }}
+                                  className="px-4 py-2 rounded-lg dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-white text-gray-900 font-medium transition text-xs flex items-center gap-2"
+                                >
                                   <ExternalLink size={14} />
                                   {t.openInShopify}
                                 </button>

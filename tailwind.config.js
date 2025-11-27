@@ -24,8 +24,8 @@ export default {
         },
         // Accent colors
         accent: {
-          primary: '#6C63FF',
-          secondary: '#B47EE5',
+          primary: '#14B8A6',
+          secondary: '#2DD4BF',
         },
         // Status colors
         success: '#10B981',

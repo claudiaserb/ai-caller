@@ -141,6 +141,14 @@ const OrderDetailsModal = ({ order, isOpen, onClose, onMarkAsReturn }) => {
     return flags[code] || '🌍';
   };
 
+  const handleOpenInShopify = () => {
+    if (!order.shopify_order_id || !order.shop?.store_url) {
+      return;
+    }
+    const url = `${order.shop.store_url}/admin/orders/${order.shopify_order_id}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -341,8 +349,11 @@ const OrderDetailsModal = ({ order, isOpen, onClose, onMarkAsReturn }) => {
 
           {/* Action Buttons */}
           <div className="space-y-2 pt-4">
-            {order.shopify_order_id && (
-              <button className="w-full py-3 rounded-xl dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-dark-text text-light-text font-semibold transition flex items-center justify-center gap-2">
+            {order.shopify_order_id && order.shop?.store_url && (
+              <button 
+                onClick={handleOpenInShopify}
+                className="w-full py-3 rounded-xl dark:bg-white/5 bg-black/5 dark:hover:bg-white/10 hover:bg-black/10 dark:text-dark-text text-light-text font-semibold transition flex items-center justify-center gap-2"
+              >
                 <ExternalLink size={18} />
                 {t.openInShopify}
               </button>

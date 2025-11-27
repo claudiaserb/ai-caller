@@ -122,7 +122,7 @@ const ForgotPassword = () => {
 
             <button
               onClick={() => navigate('/login')}
-              className="w-full py-3 rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20"
+              className="w-full py-3 rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-teal-600/20"
             >
               {t.backToLogin}
             </button>
@@ -210,7 +210,7 @@ const ForgotPassword = () => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-accent-primary/20"
+              className="w-full py-3 rounded-xl gradient-accent text-white font-semibold hover:opacity-90 transition shadow-lg shadow-teal-600/20"
             >
               {t.sendLink}
             </button>
